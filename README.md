@@ -47,7 +47,7 @@ sequenceDiagram
     
     PC->>PC: Cuenta regresiva (5 a 1)<br/>Síntesis de voz Offline (gTTS)
     
-    rect rgb(43, 60, 43)
+    rect rgb(200, 240, 200)
     PC->>R13C: Petición HTTP POST (/startvideo?force=1)
     Note over R13C: Inicia grabación de video (MP4)
     
@@ -57,7 +57,7 @@ sequenceDiagram
     
     Note over PC,PF7: Transcurso del protocolo de investigación (120 segundos)<br/>(Caminar, Correr, Caída Lateral, etc.)
     
-    rect rgb(60, 43, 43)
+    rect rgb(255, 200, 200)
     PC->>R13C: Petición HTTP POST (/stopvideo?force=1)
     Note over R13C: Detiene grabación y guarda archivo local
     
