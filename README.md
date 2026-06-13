@@ -33,7 +33,9 @@ El ecosistema está compuesto por tres nodos físicos principales que se comunic
 
 ## 🚀 Diagrama de Flujo y Sincronización
 
-```mermaid
+``![Diagrama de Flujo del Sistema](diagrama_flujo.png)
+
+`mermaid
 sequenceDiagram
     participant PC as HP Victus 15 (Orquestador)
     participant R13C as Redmi 13C (Servidor de Video)
