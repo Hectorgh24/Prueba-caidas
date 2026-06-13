@@ -38,14 +38,17 @@ El ecosistema está compuesto por tres nodos físicos principales que se comunic
 `mermaid
 sequenceDiagram
     participant PC as HP Victus 15 (Orquestador)
-    participant R13C as Redmi 13C (Servidor de Video)
+    participant R13C as Redmi 13C (IP Webcam)
     participant PF7 as Poco F7 (Nodo Edge AI)
 
     Note over PC: Usuario configura IPs y ejecuta<br/>asistente_monitoreo.py
     Note over PF7: Las 4 Apps Android están<br/>minimizadas con FGS activo
-    Note over R13C: IP Webcam a la escucha en puerto 8080
+    Note over R13C: Aplicación IP Webcam a la<br/>escucha en puerto 8080
     
+    rect rgb(255, 255, 200)
+    Note over PC: Fase de Preparación (5 Segundos)
     PC->>PC: Cuenta regresiva (5 a 1)<br/>Síntesis de voz Offline (gTTS)
+    end
     
     rect rgb(200, 240, 200)
     PC->>R13C: Petición HTTP POST (/startvideo?force=1)
@@ -55,7 +58,7 @@ sequenceDiagram
     Note over PF7: Las 4 apps inician<br/>lectura de acelerómetro<br/>al mismo milisegundo
     end
     
-    Note over PC,PF7: Transcurso del protocolo de investigación (120 segundos)<br/>(Caminar, Correr, Caída Lateral, etc.)
+    Note over PC,PF7: ⏳ Transcurso del Protocolo de Investigación (120 Segundos exactos) ⏳<br/>(Caminar, Correr, Caída Lateral, etc.)
     
     rect rgb(255, 200, 200)
     PC->>R13C: Petición HTTP POST (/stopvideo?force=1)
