@@ -100,6 +100,16 @@ Además, el script de Python fue dotado de un algoritmo **Brute-force Subnet Bro
 
 ---
 
+## 🔊 Sistema de Asistencia por Voz (Motor Offline)
+Para guiar al sujeto de prueba a lo largo de los 120 segundos del protocolo sin necesidad de interacción manual, el orquestador (`asistente_monitoreo.py`) cuenta con un motor de síntesis de voz en español basado en la librería de Google Text-to-Speech (`gTTS`) y `pygame`.
+
+Su funcionamiento destaca por las siguientes características de ingeniería:
+* **Hilos Asíncronos (`threading` y `queue`)**: La síntesis y reproducción de audio corren en un hilo paralelo. Esto garantiza que la voz hable mientras el programa continúa su ejecución matemática, evitando que la reproducción de audio retrase los *Broadcasts UDP* o congele la interfaz gráfica de Tkinter.
+* **Caché Inteligente Offline (`voz_cache/`)**: Dado que el protocolo puede ejecutarse en áreas sin acceso a internet (o utilizando un punto de acceso LAN aislado), el sistema procesa, descarga y guarda permanentemente los audios generados (`.mp3`). Una vez procesados la primera vez, el sistema funciona de forma 100% local y desconectada de la red.
+* **Tolerancia a Fallos y Archivos Corruptos**: Si el sistema detecta una caída de internet durante la generación y se crea un archivo corrupto de 0 bytes (un problema recurrente en las librerías web), el algoritmo intercepta el error, evalúa el tamaño físico del archivo (`os.path.getsize`), desecha los archivos corruptos y previene que el programa principal falle estrepitosamente.
+
+---
+
 ## 📖 Modo de Uso
 
 1. **Preparar el Nodo Edge (Poco F7):** Abre las 4 aplicaciones modificadas. Minimízalas presionando "Home". Verás que las 4 notificaciones flotantes de alta prioridad permanecen en pantalla, confirmando el bypass del sensor.
