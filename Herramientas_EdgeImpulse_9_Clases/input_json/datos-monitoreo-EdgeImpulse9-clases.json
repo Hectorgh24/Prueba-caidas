@@ -1,0 +1,71 @@
+{
+  "sessionStartMillis": 1779774221128,
+  "sessionStartIso": "2026-05-25T23:43:41",
+  "sessionEndMillis": 1779774367830,
+  "sessionEndIso": "2026-05-25T23:46:07",
+  "durationSeconds": 146,
+  "windowsProcessed": 14,
+  "fallCount": 2,
+  "alertsTriggered": 0,
+  "emergencyNumber": "2283136707",
+  "currentPrediction": "Caída hacia adelante (100%)",
+  "predictionHistory": [
+    {
+      "timeSeconds": 2,
+      "className": "fall_sideward_right"
+    },
+    {
+      "timeSeconds": 4,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 32,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 34,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 36,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 39,
+      "className": "fall_sideward_right"
+    },
+    {
+      "timeSeconds": 41,
+      "className": "fall_hand"
+    },
+    {
+      "timeSeconds": 43,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 45,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 47,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 49,
+      "className": "fall_forward"
+    },
+    {
+      "timeSeconds": 51,
+      "className": "fall_sideward_right"
+    },
+    {
+      "timeSeconds": 54,
+      "className": "fall_sideward_right"
+    },
+    {
+      "timeSeconds": 56,
+      "className": "fall_forward"
+    }
+  ],
+  "sensorHistory": []
+}

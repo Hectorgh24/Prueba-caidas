@@ -1,41 +1,84 @@
-# 🔬 Sistema Maestro de Orquestación y Sincronización para Monitoreo de Caídas Multimodelo
+# 🔬 Sistema Maestro de Sincronización Diferida para Monitoreo de Caídas Multimodelo
 
-Este proyecto contiene el orquestador central (`asistente_monitoreo.py`) desarrollado para coordinar y ejecutar pruebas científicas de "Fall Detection" (Detección de Caídas). Su objetivo principal es resolver el problema de la sincronización temporal entre múltiples modelos de Inteligencia Artificial que se ejecutan simultáneamente en el borde (Edge AI) y una fuente externa de validación en video. 
+Este proyecto contiene el orquestador central (`asistente_monitoreo.py`) desarrollado para coordinar y ejecutar pruebas científicas de "Fall Detection" (Detección de Caídas). Su objetivo principal es resolver el problema de la sincronización temporal entre múltiples modelos de Inteligencia Artificial que se ejecutan simultáneamente en el borde (Edge AI) y una fuente externa de validación en video.
 
-El sistema sincroniza la captura de datos inerciales (acelerómetro) de 4 aplicaciones diferentes en un solo teléfono, coordinándolas milimétricamente con la grabación de video de una cámara IP externa y guiando al usuario con instrucciones de voz automatizadas.
-
----
-
-## ⚙️ Arquitectura de Hardware y Nodos del Sistema
-
-El ecosistema está compuesto por tres nodos físicos principales que se comunican a través de una red de área local (LAN Wi-Fi). A continuación, se detalla el hardware y la responsabilidad técnica de cada uno:
-
-### 1. Nodo Orquestador (Computadora Central)
-* **Dispositivo:** Laptop HP Victus 15.
-* **Hardware:** Procesador AMD Ryzen 5 (Serie 7000), Tarjeta Gráfica AMD Radeon RX 6550M dedicada.
-* **Rol Técnico:** Actúa como el "cerebro" de la red. Ejecuta el script maestro en Python. Sus funciones son: 
-  1. Renderizar la Interfaz Gráfica (GUI) para el investigador.
-  2. Emitir "Subnet Directed Broadcasts" vía UDP para iniciar/detener los sensores en los dispositivos móviles de forma paralela.
-  3. Realizar peticiones HTTP REST para controlar la grabación de video.
-  4. Sintetizar la cuenta regresiva y las etapas del protocolo usando el motor de voz offline de Google (`gTTS`).
-
-### 2. Nodo Servidor de Video (Cámara IP)
-* **Dispositivo:** Xiaomi Redmi 13C.
-* **Hardware:** Procesador MediaTek Helio G85, 4 GB de RAM, 128 GB de Almacenamiento interno.
-* **Rol Técnico:** Actúa como un servidor de adquisición de imágenes (IP Webcam). Se mantiene a la escucha de peticiones HTTP `POST` en los endpoints `/startvideo` y `/stopvideo`. Su propósito es generar la evidencia visual que permitirá contrastar las inferencias de las inteligencias artificiales con el movimiento real del sujeto.
-
-### 3. Nodo de Inferencia Edge AI (Sensores IA)
-* **Dispositivo:** Poco F7.
-* **Hardware:** Procesador Snapdragon de Alta Gama, 12 GB de RAM, 512 GB de Almacenamiento interno.
-* **Rol Técnico:** Es el dispositivo que lleva el sujeto de prueba. Ejecuta 4 aplicaciones de Android de forma concurrente en la memoria RAM. Su trabajo es escuchar el puerto UDP `50000` en todo momento y, al recibir la señal, comenzar a leer el hardware del acelerómetro a 100Hz (`Sensor_Delay_Game`) para que los 4 modelos de Machine Learning evalúen la misma caída exacta.
+Debido a estrictas políticas de seguridad implementadas en Android 14 respecto al control remoto de sensores en segundo plano, la sincronización se realiza mediante una **Fase de Preparación Diferida de 5 Segundos**. Esto permite a los 4 modelos aislarse de la red Wi-Fi y garantizar una captura de telemetría ininterrumpida y 100% íntegra durante exactamente 120 segundos.
 
 ---
 
-## 🚀 Diagrama de Flujo y Sincronización
+## ⚙️ Arquitectura Actual (Sincronización Diferida y Exportación Automática)
 
-``![Diagrama de Flujo del Sistema](diagrama_flujo.png)
+Para lograr capturas de alta frecuencia (14,000+ puntos de acelerómetro por prueba) sin bloqueos del sistema operativo, el protocolo actual opera de la siguiente manera:
 
-`mermaid
+1. **Retardo Pre-Programado (5s):** Cada aplicación Android fue reprogramada (mediante `CountDownTimer` y Corrutinas) para iniciar una cuenta regresiva visual de 5 segundos al presionar el botón "Iniciar Monitoreo". 
+2. **Sincronización Humana:** Este retardo de 5 segundos brinda el margen físico exacto para que el investigador inicie las 4 aplicaciones manualmente en el dispositivo Edge y posteriormente presione "Enter" en el script de Python.
+3. **Escritura Asíncrona Concurrente:** Una vez pasados los 5 segundos, inicia el protocolo de 120s reales. Cada segundo, las aplicaciones escriben una copia de seguridad en memoria volátil de forma paralela (evitando colisiones en el Hilo Principal) y guardan exactamente 50 capturas inerciales por segundo.
+4. **Exportación Automática en Cero:** En el milisegundo en que la prueba culmina (segundo 120), cada aplicación exporta de forma **síncrona y automática** el archivo JSON completo (aprox. 1.9 MB) al directorio `Downloads` del dispositivo, garantizando que el sistema operativo no asesine la memoria RAM de la aplicación antes de que los datos sean persistidos.
+
+### Diagrama de la Arquitectura Funcional Definitiva (Aislada y Segura)
+
+```mermaid
+sequenceDiagram
+    participant PC as Laptop (Python / Orquestador)
+    participant CAM as Celular Cámara (IP Webcam)
+    participant APP as 4 Apps Android (TF & EI)
+    participant GPU as Procesamiento Video (PC)
+
+    Note over PC, APP: 1. Configuración Manual Rápida
+    PC->>PC: Ejecuta asistente_monitoreo.py
+    APP->>APP: Usuario presiona "Iniciar Monitoreo" en las 4 apps
+
+    rect rgb(200, 240, 255)
+    Note over PC, APP: 2. Fase de Preparación Síncrona (5 Segundos)
+    PC->>PC: Cuenta regresiva por voz gTTS (5 a 1)
+    APP->>APP: CountDownTimer interno (5 a 1)
+    end
+
+    rect rgb(220, 255, 220)
+    Note over PC, APP: 3. Monitoreo Activo (120 Segundos exactos)
+    PC->>CAM: Petición HTTP (startvideo)
+    Note over APP: Hilo Principal: Sensor Acelerómetro (50Hz)<br/>Hilo Inferencia: IA TF/EI + RAM (1Hz)<br/>Hilo I/O: Autoguardado JSON Seguro (15s)
+    end
+
+    rect rgb(255, 220, 220)
+    Note over PC, APP: 4. Finalización y Persistencia Automática
+    PC->>CAM: Petición HTTP (stopvideo)
+    APP->>APP: Exporta JSON completo automáticamente a Downloads/
+    end
+
+    rect rgb(255, 240, 200)
+    Note over GPU: 5. Generación de Videos (Post-Procesamiento)
+    APP-->>GPU: Usuario transfiere JSON a la PC
+    GPU->>GPU: Python procesa JSON con Fuzzy Matching
+    GPU->>GPU: AMD AMF / NVIDIA NVENC renderiza 3 videos MP4 a 1080p 30FPS
+    end
+```
+
+---
+
+## ✨ Mejoras Técnicas Finales (Generación de Videos y Optimización de Telemetría)
+
+Para asegurar un grado de investigación científica del más alto nivel, se implementaron múltiples correcciones al manejo de concurrencia y posprocesamiento visual de los datos:
+
+1. **Paridad de Muestreo (50Hz en Edge Impulse):** Se ajustó el motor de `MonitoringLogManager` (`FULL_HISTORY_DECIMATION = 1`) para obligar a los proyectos de Edge Impulse a no desechar datos, logrando que graben **+5,580 puntos del acelerómetro** por sesión, igualando perfectamente la densidad de los modelos nativos de TensorFlow Lite.
+2. **Blindaje contra ConcurrentModificationException:** Debido a la monstruosa velocidad del acelerómetro, se inyectaron bloques `synchronized(fullSensorHistory)` en Android para garantizar que los guardados periódicos automáticos del archivo JSON en segundo plano no crasheen la app al chocar con el Hilo Principal del sensor.
+3. **Renderizado de Video Acelerado por Hardware:** Se desarrolló una suite en Python con `Matplotlib` y `FFmpeg` que lee los JSON y utiliza la tarjeta de video (NVENC o AMF) para renderizar a **1080p y 30 FPS**. Se implementó una "Ventana Deslizante" (Sliding Window) de 15 segundos para evitar superposiciones tipográficas en los gráficos, asegurando marcas precisas cada 1.0 segundos.
+4. **Fuzzy Matching de Clases (Unicode):** Se inyectó un parche en los scripts de video en Python (`unicodedata`) para ignorar acentos, mayúsculas y sufijos, de forma que predicciones problemáticas como `"Caída hacia atrás"` enlacen matemáticamente a la perfección con el eje Y sin crear vacíos en la renderización final.
+
+---
+
+## 🏛️ Primer Intento de Prueba: Orquestación Total vía UDP (Deprecado)
+
+En la fase inicial de desarrollo, se intentó implementar un sistema de orquestación 100% automatizado, donde el orquestador enviaba paquetes *UDP Subnet Directed Broadcasts* por el puerto `50000` para obligar a las 4 aplicaciones a despertar simultáneamente desde segundo plano.
+
+### 🚫 Restricciones Técnicas de Google (Android 14+)
+A pesar de modificar los *Manifests* y usar *WakeLocks* (`PowerManager.PARTIAL_WAKE_LOCK`), este enfoque automatizado falló debido a las siguientes restricciones de arquitectura del SO:
+1. **ForegroundServiceStartNotAllowedException:** Android 14 implementó una política severa de *App Standby* y *Doze Mode* que prohíbe explícitamente a las aplicaciones minimizadas iniciar un `ForegroundService` (incluyendo tipos `health` o `dataSync`) en respuesta a un estímulo de red silencioso (como UDP) sin interacción directa del usuario.
+2. **Asesinato Inmediato de RAM por HyperOS/MIUI:** Al terminar el tiempo establecido remotamente, el servicio mandaba detenerse (`stopSelf()`). En fracciones de segundo, el agresivo recolector de basura de Xiaomi (HyperOS) mataba el proceso contenedor de las aplicaciones de fondo. Esto provocaba que al momento de que el usuario abría la app para exportar manualmente, el puntero del Singleton (`_currentSession.value`) ya fuera nulo, obligando a la app a restaurar *backups* fantasmas cacheados de fechas antiguas (ej. datos de Mayo en lugar de los actuales).
+
+### Diagrama de la Arquitectura UDP Original (Como Referencia Histórica)
+
+```mermaid
 sequenceDiagram
     participant PC as HP Victus 15 (Orquestador)
     participant R13C as Redmi 13C (IP Webcam)
@@ -55,51 +98,25 @@ sequenceDiagram
     Note over R13C: Inicia grabación de video (MP4)
     
     PC-->>PF7: Broadcast UDP Fuerza Bruta (Puerto 50000)<br/>Señal: START_MONITORING
-    Note over PF7: Las 4 apps inician<br/>lectura de acelerómetro<br/>al mismo milisegundo
+    Note over PF7: Apps intentaban iniciar<br/>lectura de acelerómetro<br/>(Bloqueado por Android 14)
     end
     
-    Note over PC,PF7: ⏳ Transcurso del Protocolo de Investigación (120 Segundos exactos) ⏳<br/>(Caminar, Correr, Caída Lateral, etc.)
+    Note over PC,PF7: ⏳ Transcurso del Protocolo de Investigación (120 Segundos) ⏳
     
     rect rgb(255, 200, 200)
     PC->>R13C: Petición HTTP POST (/stopvideo?force=1)
-    Note over R13C: Detiene grabación y guarda archivo local
     
     PC-->>PF7: Broadcast UDP Fuerza Bruta (Puerto 50000)<br/>Señal: STOP_MONITORING
-    Note over PF7: Apps detienen lectura,<br/>generan archivos de telemetría (JSON)<br/>y regresan a modo reposo
+    Note over PF7: MIUI asesina las apps de fondo<br/>al detener el servicio
     end
 ```
 
----
+### Modificaciones Previas de Ingeniería (Inyectadas pero Insuficientes)
+*   Se crearon servicios como `DummyForegroundService.kt` con canales de notificación de alta prioridad.
+*   Se inyectaron dependencias como `ACTIVITY_RECOGNITION` y `POST_NOTIFICATIONS` en los *Manifests*.
+*   Se usaron Banderas como `START_STICKY` y llamadas a `startForegroundService` en el `onResume()`.
 
-## 🛡️ Soluciones de Ingeniería y Modificaciones a las Apps
-
-Desde Android 9, el sistema operativo corta el acceso al hardware (acelerómetro, giroscopio) a cualquier aplicación que esté en segundo plano (minimizada). Para poder evaluar **4 modelos distintos simultáneamente en el Poco F7**, se inyectó una arquitectura de **Foreground Service (FGS)** que engaña al sistema de administración de batería de Android. 
-
-A continuación, se detallan los 4 proyectos y las modificaciones idénticas que se aplicaron a cada uno para lograr la concurrencia:
-
-### 1. `AplicacionEdgeImpulseDeteccionCaidas9clases`
-* **Modificación en Código:** Se creó el archivo `DummyForegroundService.kt` el cual genera un canal de notificaciones con prioridad alta (`IMPORTANCE_HIGH`). 
-* **Modificación en Manifest:** Se inyectaron los permisos obligatorios para Android 14: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC` y `POST_NOTIFICATIONS`.
-* **Ciclo de Vida:** Se modificó la clase `MainActivity.kt` inyectando el método `onResume()` para que, cada vez que la app pase por pantalla, ejecute un bloque `try/catch` obligando al servicio `dataSync` a encenderse y quedarse anclado en la memoria.
-
-### 2. `AplicacionTensorFlowAndKeras17` (17 clases TF)
-* **Modificación en Código:** Se integró el `DummyForegroundService.kt` independiente de sus servicios anteriores, asegurando el canal `monitoreo_channel_high` para forzar la notificación flotante.
-* **Modificación en Manifest:** Aunque el proyecto ya tenía permisos de salud (`health`), se inyectó la rama `DATA_SYNC` y se vinculó en la declaración del servicio dentro del `<application>`.
-* **Ciclo de Vida:** El `MainActivity.kt` fue parcheado para arrancar este proceso de inmunidad en segundo plano tan pronto como el usuario carga la vista principal.
-
-### 3. `AplicacionEdgeImpulse17` (17 clases EI)
-* **Modificación en Código:** Implementación total de `DummyForegroundService.kt` con llamadas compatibles para `Build.VERSION_CODES.Q` en adelante.
-* **Modificación en Manifest:** Declaración explícita de `android:foregroundServiceType="dataSync"` para cumplir con las rigurosas políticas de Android 14 en el Poco F7.
-* **Ciclo de Vida:** Inyección en `onResume()` para garantizar que la recolección UDP siga viva incluso al presionar el botón *Home*.
-
-### 4. `tflite-keras-9class-app` (TensorFlow Lite 9 clases)
-* **Modificación en Código:** Restauración e inyección del archivo `DummyForegroundService.kt` con icono de sistema, texto persistente ("Monitoreo en curso") y bandera `START_STICKY` para reinicio automático.
-* **Modificación en Manifest:** Inyección de la dependencia de notificaciones de Android 13+ (`POST_NOTIFICATIONS`) para evitar excepciones de seguridad en tiempo de ejecución.
-* **Ciclo de Vida:** Se escaneó y reemplazó la estructura del `MainActivity.kt` para insertar el hook de `startForegroundService` garantizando el bypass del acelerómetro.
-
-### Ajustes en el Script de Python y Cámara IP Webcam
-Para la aplicación "IP Webcam", se eliminó el requerimiento de iniciar el video tocando la pantalla. En el script `asistente_monitoreo.py`, se implementaron peticiones HTTP POST estructuradas (`urllib.request.urlopen`) que atacan la API web interna de la app (`/startvideo?force=1` y `/stopvideo?force=1`). 
-Además, el script de Python fue dotado de un algoritmo **Brute-force Subnet Broadcast**, el cual escanea las interfaces de red de Windows (ignorando adaptadores virtuales como VirtualBox) y envía la señal UDP masivamente, garantizando que el Poco F7 la reciba al instante sin latencia de ruteo.
+*A pesar de estos grandes esfuerzos de ingeniería, la asimetría en el tratamiento de procesos de fondo entre teléfonos modernos forzó la transición a la estrategia actual de retraso de 5 segundos.*
 
 ---
 
@@ -107,19 +124,21 @@ Además, el script de Python fue dotado de un algoritmo **Brute-force Subnet Bro
 Para guiar al sujeto de prueba a lo largo de los 120 segundos del protocolo sin necesidad de interacción manual, el orquestador (`asistente_monitoreo.py`) cuenta con un motor de síntesis de voz en español basado en la librería de Google Text-to-Speech (`gTTS`) y `pygame`.
 
 Su funcionamiento destaca por las siguientes características de ingeniería:
-* **Hilos Asíncronos (`threading` y `queue`)**: La síntesis y reproducción de audio corren en un hilo paralelo. Esto garantiza que la voz hable mientras el programa continúa su ejecución matemática, evitando que la reproducción de audio retrase los *Broadcasts UDP* o congele la interfaz gráfica de Tkinter.
-* **Caché Inteligente Offline (`voz_cache/`)**: Dado que el protocolo puede ejecutarse en áreas sin acceso a internet (o utilizando un punto de acceso LAN aislado), el sistema procesa, descarga y guarda permanentemente los audios generados (`.mp3`). Una vez procesados la primera vez, el sistema funciona de forma 100% local y desconectada de la red.
-* **Tolerancia a Fallos y Archivos Corruptos**: Si el sistema detecta una caída de internet durante la generación y se crea un archivo corrupto de 0 bytes (un problema recurrente en las librerías web), el algoritmo intercepta el error, evalúa el tamaño físico del archivo (`os.path.getsize`), desecha los archivos corruptos y previene que el programa principal falle estrepitosamente.
+* **Hilos Asíncronos (`threading` y `queue`)**: La síntesis y reproducción de audio corren en un hilo paralelo.
+* **Caché Inteligente Offline (`voz_cache/`)**: El sistema procesa, descarga y guarda permanentemente los audios generados (`.mp3`). Una vez procesados, funciona de forma 100% local.
+* **Tolerancia a Fallos**: Evita crasheos al evaluar el tamaño físico del archivo (`os.path.getsize`), desechando archivos corruptos de 0 bytes si cae el internet.
 
 ---
 
-## 📖 Modo de Uso
+## 📖 Modo de Uso Actual
 
-1. **Preparar el Nodo Edge (Poco F7):** Abre las 4 aplicaciones modificadas. Minimízalas presionando "Home". Verás que las 4 notificaciones flotantes de alta prioridad permanecen en pantalla, confirmando el bypass del sensor.
-2. **Preparar el Nodo de Video (Redmi 13C):** Abre *IP Webcam* y presiona "Start Server". Identifica la IP local (Ej. `192.168.100.111`).
+1. **Preparar el Nodo Edge (Poco F7):** Abre las 4 aplicaciones y colócalas listas en la pantalla de inicio o multitarea. 
+2. **Preparar el Nodo de Video (Redmi 13C):** Abre *IP Webcam* y presiona "Start Server".
 3. **Ejecutar el Orquestador (Laptop HP):**
    ```powershell
    python asistente_monitoreo.py
    ```
-4. En la interfaz gráfica, ingresa la IP del Redmi 13C. Deja la IP del Poco F7 en `255.255.255.255`.
-5. Presiona **INICIAR PROTOCOLO**. El audio te indicará el conteo regresivo y el progreso. Al terminar, la cámara se cortará sola y tendrás 4 JSON generados con tu telemetría sincronizada en el Poco F7.
+4. **Sincronización:** 
+   * Toca velozmente el botón **"Iniciar Monitoreo"** en las 4 aplicaciones Android. Estas entrarán en una cuenta regresiva de 5 segundos.
+   * Inmediatamente, presiona **"INICIAR PROTOCOLO"** en tu computadora.
+5. **Prueba y Extracción:** Realiza tu protocolo físico de 120s. Al finalizar, la cámara se detendrá sola desde Python, y mágicamente encontrarás los **4 archivos JSON completos** en la carpeta `Downloads` de tu celular gracias a la exportación automática integrada en el milisegundo exacto de cierre.

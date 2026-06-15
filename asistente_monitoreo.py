@@ -73,11 +73,7 @@ class AsistenteMonitoreoApp:
         self.entry_ip.insert(0, "192.168.1.100:8080")
         self.entry_ip.grid(row=0, column=1, padx=5, pady=2)
 
-        lbl_ip_poco = tk.Label(frame_ips, text="IP Poco F7 (Android Apps):", font=("Arial", 10), bg="#2b2b2b", fg="#ffffff")
-        lbl_ip_poco.grid(row=1, column=0, padx=5, pady=2, sticky="e")
-        self.entry_ip_poco = tk.Entry(frame_ips, width=18, font=("Arial", 10))
-        self.entry_ip_poco.insert(0, "255.255.255.255") # Broadcast by default
-        self.entry_ip_poco.grid(row=1, column=1, padx=5, pady=2)
+
 
         # Contador de tiempo
         self.lbl_tiempo = tk.Label(main_frame, text="00:00", 
@@ -221,33 +217,7 @@ class AsistenteMonitoreoApp:
                 def _start_everything():
                     self.btn_iniciar.config(text="DETENER", state=tk.NORMAL, bg="#f44336", activebackground="#da190b")
                     
-                    # Enviar señal UDP (Brute-force Subnet Directed Broadcast para evitar bloqueos de Windows/VirtualBox)
-                    try:
-                        import socket as sckt
-                        hostname = sckt.gethostname()
-                        ips = sckt.gethostbyname_ex(hostname)[2]
-                        ip_poco = self.entry_ip_poco.get().strip()
-                        
-                        targets = []
-                        if ip_poco and ip_poco != "255.255.255.255":
-                            targets.append(ip_poco)
-                        else:
-                            # Calcular broadcast para cada interfaz de red local
-                            targets.append("255.255.255.255")
-                            for ip_local in ips:
-                                if not ip_local.startswith("127."):
-                                    subnet = ip_local.rsplit('.', 1)[0]
-                                    targets.append(f"{subnet}.255")
-                        
-                        targets = list(set(targets)) # Eliminar duplicados
-                        for t in targets:
-                            try:
-                                self.udp_socket.sendto(b"START_MONITORING", (t, self.puerto_udp))
-                                print(f"Señal UDP START enviada a: {t}:{self.puerto_udp}")
-                            except:
-                                pass
-                    except Exception as e:
-                        print(f"Error general UDP: {e}")
+                    # UDP BROADCASTS REMOVED - Android apps now handle start manually.
                         
                     # Iniciar cámara
                     ip = self.entry_ip.get().strip()
@@ -279,32 +249,7 @@ class AsistenteMonitoreoApp:
         self.en_ejecucion = False
         self.btn_iniciar.config(text="INICIAR PROTOCOLO", bg="#4caf50", activebackground="#45a049")
         
-        # Enviar señal UDP STOP (Brute-force Subnet Directed Broadcast)
-        try:
-            import socket as sckt
-            hostname = sckt.gethostname()
-            ips = sckt.gethostbyname_ex(hostname)[2]
-            ip_poco = self.entry_ip_poco.get().strip()
-            
-            targets = []
-            if ip_poco and ip_poco != "255.255.255.255":
-                targets.append(ip_poco)
-            else:
-                targets.append("255.255.255.255")
-                for ip_local in ips:
-                    if not ip_local.startswith("127."):
-                        subnet = ip_local.rsplit('.', 1)[0]
-                        targets.append(f"{subnet}.255")
-            
-            targets = list(set(targets))
-            for t in targets:
-                try:
-                    self.udp_socket.sendto(b"STOP_MONITORING", (t, self.puerto_udp))
-                except:
-                    pass
-            print("Señales UDP STOP_MONITORING enviadas a todas las subredes.")
-        except Exception as e:
-            print(f"Error general UDP: {e}")
+        # UDP BROADCASTS REMOVED - Android apps now handle stop automatically after 120s.
 
         # Detener cámara IP Webcam
         ip = self.entry_ip.get().strip()
